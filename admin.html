@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بەڕێوەبردنی کاڵاکان - هەفتەبازاڕی سلێمانی</title>
+<link rel="icon" href="logo.png">
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+margin:0;
+font-family:Tahoma,Arial,sans-serif;
+min-height:100vh;
+background:
+linear-gradient(
+to bottom,
+rgba(210,0,0,.18) 0 33.33%,
+rgba(255,255,255,.92) 33.33% 66.66%,
+rgba(0,150,70,.18) 66.66% 100%
+);
+}
+
+.header{
+text-align:center;
+padding:20px 15px;
+background:linear-gradient(
+to bottom,
+#d71920 0 33.33%,
+#fff 33.33% 66.66%,
+#168b45 66.66% 100%
+);
+}
+
+.header img{
+width:70px;
+height:70px;
+object-fit:contain;
+border-radius:50%;
+background:#fff;
+box-shadow:0 3px 10px rgba(0,0,0,.25);
+}
+
+.header h1{
+margin:10px 0 0;
+font-size:20px;
+}
+
+.container{
+max-width:600px;
+margin:auto;
+padding:18px;
+}
+
+.card{
+background:rgba(255,255,255,.96);
+border-radius:18px;
+padding:18px;
+margin-bottom:15px;
+box-shadow:0 5px 20px rgba(0,0,0,.12);
+}
+
+label{
+display:block;
+font-weight:bold;
+margin-bottom:8px;
+}
+
+input{
+width:100%;
+padding:15px;
+border:1px solid #ccc;
+border-radius:12px;
+font-size:18px;
+outline:none;
+margin-bottom:10px;
+}
+
+input:focus{
+border-color:#168b45;
+}
+
+button{
+width:100%;
+padding:14px;
+border:none;
+border-radius:12px;
+font-size:17px;
+font-weight:bold;
+cursor:pointer;
+background:#168b45;
+color:white;
+margin-top:5px;
+}
+
+button:hover{
+opacity:.9;
+}
+
+button:disabled{
+opacity:.6;
+cursor:not-allowed;
+}
+
+.dark{
+background:#333;
+}
+
+.hidden{
+display:none;
+}
+
+.message{
+color:#777;
+text-align:center;
+line-height:1.8;
+}
+
+.product-list{
+margin-top:15px;
+}
+
+.product{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:12px 5px;
+border-bottom:1px solid #ddd;
+gap:10px;
+}
+
+.product-info{
+flex:1;
+}
+
+.product-name-small{
+font-weight:bold;
+}
+
+.product-code{
+font-size:13px;
+color:#777;
+margin-top:4px;
+}
+
+.btn-group{
+display:flex;
+flex-direction:column;
+gap:6px;
+}
+
+.edit-btn{
+width:auto;
+padding:8px 12px;
+background:#333;
+font-size:13px;
+}
+
+.delete{
+width:auto;
+padding:8px 12px;
+background:#d71920;
+font-size:13px;
+}
+
+.top-bar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:10px;
+}
+
+.logout-btn{
+width:auto;
+padding:8px 16px;
+background:#d71920;
+font-size:13px;
+margin:0;
+}
+
+.back-link{
+display:block;
+text-align:center;
+color:#555;
+font-size:13px;
+margin-top:10px;
+text-decoration:none;
+}
+
+.error-msg{
+color:#d71920;
+text-align:center;
+font-size:14px;
+margin-top:5px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+<img src="logo.png" alt="هەفتەبازاڕی سلێمانی">
+<h1>بەڕێوەبردنی کاڵاکان</h1>
+</div>
+
+<div class="container">
+
+<!-- LOGIN -->
+<div class="card" id="loginCard">
+
+<label>ئیمەیل</label>
+<input id="loginEmail" type="email" placeholder="ئیمەیلی کارمەند">
+
+<label>وشەی نهێنی</label>
+<input id="loginPassword" type="password" placeholder="وشەی نهێنی">
+
+<button id="loginBtn" onclick="login()">🔑 چوونەژوورەوە</button>
+
+<div id="loginError" class="error-msg hidden"></div>
+
+<a class="back-link" href="index.html">↩ گەڕانەوە بۆ لاپەڕەی سەرەکی</a>
+
+</div>
+
+<!-- ADMIN PANEL (hidden until logged in) -->
+<div id="adminPanel" class="hidden">
+
+<div class="card">
+<div class="top-bar">
+<span id="userLabel" style="font-size:13px;color:#555;"></span>
+<button class="logout-btn" onclick="logout()">دەرچوون</button>
+</div>
+</div>
+
+<div class="card">
+
+<h3 id="formTitle">➕ زیادکردنی کاڵای نوێ</h3>
+
+<label>ناوی کاڵا</label>
+<input id="productName" type="text" placeholder="ناوی کاڵا">
+
+<label>بارکۆد</label>
+<input id="productBarcode" type="text" inputmode="numeric" placeholder="بارکۆدی کاڵا">
+
+<label>نرخ بە دینار</label>
+<input id="productPrice" type="number" inputmode="decimal" placeholder="بۆ نموونە 1500">
+
+<button id="saveBtn" onclick="saveProduct()">💾 پاشەکەوتکردن</button>
+<button id="cancelEditBtn" class="dark hidden" onclick="cancelEdit()">✖ پاشگەزبوونەوە</button>
+
+</div>
+
+<div class="card">
+
+<h3>📦 هەموو کاڵاکان</h3>
+
+<div id="totalCount" class="message" style="text-align:right;margin-bottom:10px;">
+کۆی کاڵاکان: 0
+</div>
+
+<div id="productList" class="product-list">
+<div class="message">چاوەڕوان بە، بارکردن...</div>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<script src="firebase-config.js"></script>
+<script>
+
+let products = [];
+let editingId = null;
+
+// ---------- Auth ----------
+
+auth.onAuthStateChanged(function(user){
+
+if(user){
+document.getElementById("loginCard").classList.add("hidden");
+document.getElementById("adminPanel").classList.remove("hidden");
+document.getElementById("userLabel").textContent = "چوویتە ژوورەوە وەک: " + user.email;
+}else{
+document.getElementById("loginCard").classList.remove("hidden");
+document.getElementById("adminPanel").classList.add("hidden");
+}
+
+});
+
+function login(){
+
+let email = document.getElementById("loginEmail").value.trim();
+let password = document.getElementById("loginPassword").value;
+let errorBox = document.getElementById("loginError");
+let btn = document.getElementById("loginBtn");
+
+errorBox.classList.add("hidden");
+
+if(!email || !password){
+errorBox.textContent = "تکایە ئیمەیل و وشەی نهێنی داخڵ بکە.";
+errorBox.classList.remove("hidden");
+return;
+}
+
+btn.disabled = true;
+btn.textContent = "چاوەڕوان بە...";
+
+auth.signInWithEmailAndPassword(email, password)
+.catch(function(err){
+errorBox.textContent = "❌ ئیمەیل یان وشەی نهێنی هەڵەیە.";
+errorBox.classList.remove("hidden");
+})
+.finally(function(){
+btn.disabled = false;
+btn.textContent = "🔑 چوونەژوورەوە";
+});
+
+}
+
+function logout(){
+auth.signOut();
+}
+
+// ---------- Products (live sync) ----------
+
+db.collection("products").onSnapshot(function(snapshot){
+
+products = snapshot.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+
+displayProducts();
+
+});
+
+function displayProducts(){
+
+let list = document.getElementById("productList");
+
+document.getElementById("totalCount").textContent =
+"کۆی کاڵاکان: " + products.length;
+
+if(products.length===0){
+
+list.innerHTML=`
+<div class="message">
+هیچ کاڵایەک تۆمار نەکراوە.
+</div>`;
+
+return;
+
+}
+
+list.innerHTML="";
+
+products.forEach((product)=>{
+
+let item=document.createElement("div");
+
+item.className="product";
+
+item.innerHTML=`
+
+<div class="product-info">
+
+<div class="product-name-small">
+${product.name}
+</div>
+
+<div class="product-code">
+بارکۆد: ${product.barcode}
+<br>
+نرخ: ${Number(product.price).toLocaleString()} دینار
+</div>
+
+</div>
+
+<div class="btn-group">
+<button class="edit-btn" onclick="startEdit('${product.id}')">✏️ دەستکاری</button>
+<button class="delete" onclick="deleteProduct('${product.id}')">🗑️ سڕینەوە</button>
+</div>
+
+`;
+
+list.appendChild(item);
+
+});
+
+}
+
+function startEdit(id){
+
+let product = products.find(p=>p.id===id);
+if(!product) return;
+
+editingId = id;
+
+document.getElementById("productName").value = product.name;
+document.getElementById("productBarcode").value = product.barcode;
+document.getElementById("productPrice").value = product.price;
+
+document.getElementById("formTitle").textContent = "✏️ دەستکاریکردنی کاڵا";
+document.getElementById("saveBtn").textContent = "💾 پاشەکەوتکردنی گۆڕانکاری";
+document.getElementById("cancelEditBtn").classList.remove("hidden");
+
+window.scrollTo({top:0, behavior:"smooth"});
+
+}
+
+function cancelEdit(){
+
+editingId = null;
+
+document.getElementById("productName").value = "";
+document.getElementById("productBarcode").value = "";
+document.getElementById("productPrice").value = "";
+
+document.getElementById("formTitle").textContent = "➕ زیادکردنی کاڵای نوێ";
+document.getElementById("saveBtn").textContent = "💾 پاشەکەوتکردن";
+document.getElementById("cancelEditBtn").classList.add("hidden");
+
+}
+
+async function saveProduct(){
+
+let name = document.getElementById("productName").value.trim();
+let barcode = document.getElementById("productBarcode").value.trim();
+let price = Number(document.getElementById("productPrice").value);
+
+if(name==="" || barcode==="" || price<=0){
+alert("تکایە هەموو خانەکان پڕ بکەرەوە.");
+return;
+}
+
+let duplicate = products.find(p=>p.barcode===barcode && p.id!==editingId);
+if(duplicate){
+alert("❌ ئەم بارکۆدە پێشتر هەیە.");
+return;
+}
+
+const saveBtn = document.getElementById("saveBtn");
+saveBtn.disabled = true;
+saveBtn.textContent = "چاوەڕوان بە...";
+
+try{
+
+if(editingId){
+
+await db.collection("products").doc(editingId).update({
+name:name,
+barcode:barcode,
+price:price
+});
+
+}else{
+
+await db.collection("products").add({
+name:name,
+barcode:barcode,
+price:price
+});
+
+}
+
+cancelEdit();
+
+}catch(err){
+
+alert("❌ کێشەیەک ڕوویدا لە پاشەکەوتکردن.");
+console.error(err);
+
+}
+
+saveBtn.disabled = false;
+saveBtn.textContent = editingId ? "💾 پاشەکەوتکردنی گۆڕانکاری" : "💾 پاشەکەوتکردن";
+
+}
+
+async function deleteProduct(id){
+
+if(!confirm("دڵنیایت لە سڕینەوەی ئەم کاڵایە؟"))
+return;
+
+try{
+await db.collection("products").doc(id).delete();
+}catch(err){
+alert("❌ کێشەیەک ڕوویدا لە سڕینەوە.");
+console.error(err);
+}
+
+}
+
+</script>
+
+</body>
+</html>
