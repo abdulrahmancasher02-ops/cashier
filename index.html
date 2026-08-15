@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>کاشێری مارکێت</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+margin:0;
+font-family:Tahoma,Arial,sans-serif;
+min-height:100vh;
+background:
+linear-gradient(
+to bottom,
+rgba(210,0,0,.18) 0 33.33%,
+rgba(255,255,255,.92) 33.33% 66.66%,
+rgba(0,150,70,.18) 66.66% 100%
+);
+}
+
+.header{
+text-align:center;
+padding:25px 15px;
+background:linear-gradient(
+to bottom,
+#d71920 0 33.33%,
+#fff 33.33% 66.66%,
+#168b45 66.66% 100%
+);
+position:relative;
+overflow:hidden;
+}
+
+.header h1{
+margin:0;
+font-size:25px;
+position:relative;
+z-index:2;
+}
+
+.header p{
+margin:8px 0 0;
+position:relative;
+z-index:2;
+}
+
+.sun{
+position:absolute;
+left:50%;
+top:50%;
+transform:translate(-50%,-50%);
+font-size:75px;
+color:#e5bd00;
+opacity:.8;
+}
+
+.container{
+max-width:600px;
+margin:auto;
+padding:18px;
+}
+
+.card{
+background:rgba(255,255,255,.96);
+border-radius:18px;
+padding:18px;
+margin-bottom:15px;
+box-shadow:0 5px 20px rgba(0,0,0,.12);
+}
+
+label{
+display:block;
+font-weight:bold;
+margin-bottom:8px;
+}
+
+input{
+width:100%;
+padding:15px;
+border:1px solid #ccc;
+border-radius:12px;
+font-size:18px;
+outline:none;
+margin-bottom:10px;
+}
+
+input:focus{
+border-color:#168b45;
+}
+
+button{
+width:100%;
+padding:14px;
+border:none;
+border-radius:12px;
+font-size:17px;
+font-weight:bold;
+cursor:pointer;
+background:#168b45;
+color:white;
+margin-top:5px;
+}
+
+button:hover{
+opacity:.9;
+}
+
+button:disabled{
+opacity:.6;
+cursor:not-allowed;
+}
+
+.red{
+background:#d71920;
+}
+
+.dark{
+background:#333;
+}
+
+.price-box{
+margin-top:15px;
+background:#f4f4f4;
+border-radius:15px;
+text-align:center;
+padding:20px;
+}
+
+.product-name{
+font-size:20px;
+font-weight:bold;
+}
+
+.price{
+font-size:42px;
+font-weight:bold;
+color:#168b45;
+margin:8px;
+}
+
+.currency{
+font-size:16px;
+}
+
+.product-list{
+margin-top:15px;
+}
+
+.product{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:12px 5px;
+border-bottom:1px solid #ddd;
+gap:10px;
+}
+
+.product-info{
+flex:1;
+}
+
+.product-name-small{
+font-weight:bold;
+}
+
+.product-code{
+font-size:13px;
+color:#777;
+margin-top:4px;
+}
+
+.delete{
+width:auto;
+padding:8px 12px;
+background:#d71920;
+font-size:13px;
+}
+
+.hidden{
+display:none;
+}
+
+.message{
+color:#777;
+text-align:center;
+line-height:1.8;
+}
+
+.qty-row{
+display:flex;
+gap:10px;
+align-items:center;
+margin-bottom:10px;
+}
+
+.qty-row input{
+margin-bottom:0;
+text-align:center;
+}
+
+.qty-row label{
+margin:0;
+white-space:nowrap;
+}
+
+.add-cart-btn{
+background:#d71920;
+}
+
+.cart-item{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:10px 5px;
+border-bottom:1px solid #ddd;
+gap:10px;
+}
+
+.cart-item-info{
+flex:1;
+}
+
+.cart-item-name{
+font-weight:bold;
+}
+
+.cart-item-detail{
+font-size:13px;
+color:#777;
+margin-top:4px;
+}
+
+.cart-item-subtotal{
+font-weight:bold;
+color:#168b45;
+white-space:nowrap;
+}
+
+.total-row{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 5px 5px;
+margin-top:10px;
+border-top:2px solid #168b45;
+font-size:19px;
+font-weight:bold;
+}
+
+.total-row .total-amount{
+color:#168b45;
+font-size:26px;
+}
+
+.footer{
+text-align:center;
+color:#555;
+font-size:13px;
+padding:10px;
+}
+
+.scan-btn{
+background:#333;
+}
+
+.scanner-overlay{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.9);
+z-index:1000;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+padding:15px;
+}
+
+.scanner-notice{
+background:#168b45;
+color:#fff;
+padding:12px 18px;
+border-radius:12px;
+text-align:center;
+font-size:14px;
+margin-bottom:14px;
+max-width:420px;
+box-shadow:0 4px 12px rgba(0,0,0,.3);
+}
+
+.scanner-box{
+position:relative;
+width:100%;
+max-width:420px;
+background:#000;
+border-radius:14px;
+overflow:hidden;
+}
+
+.scanner-box video, .scanner-box canvas{
+width:100% !important;
+height:auto !important;
+display:block;
+}
+
+.scanner-frame{
+position:absolute;
+top:35%;
+left:8%;
+right:8%;
+height:30%;
+border:3px solid #e5bd00;
+border-radius:8px;
+pointer-events:none;
+}
+
+.scanner-hint{
+color:#fff;
+text-align:center;
+margin:12px 0;
+font-size:14px;
+}
+
+.scanner-close{
+width:auto;
+padding:10px 25px;
+background:#d71920;
+margin-top:5px;
+}
+
+.toast{
+position:fixed;
+top:20px;
+left:50%;
+transform:translateX(-50%);
+background:#333;
+color:#fff;
+padding:12px 22px;
+border-radius:30px;
+font-size:14px;
+z-index:2000;
+box-shadow:0 4px 14px rgba(0,0,0,.3);
+text-align:center;
+max-width:90%;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+<div class="sun">☀</div>
+<h1>سیستەمی کاشێری مارکێت</h1>
+<p>دۆزینەوەی نرخ و حسابکردنی کۆی کڕین بە بارکۆد</p>
+</div>
+
+<div class="container">
+
+<div class="card">
+
+<label>بارکۆدی کاڵا</label>
+
+<input
+id="barcode"
+type="text"
+inputmode="numeric"
+placeholder="بارکۆد لێرە بنووسە..."
+>
+
+<div class="qty-row">
+<label style="min-width:45px;">دانە:</label>
+<input id="qty" type="number" inputmode="numeric" value="1" min="1">
+</div>
+
+<button onclick="searchProduct()">
+🔎 پیشاندانی نرخ
+</button>
+
+<button class="dark" onclick="clearSearch()">
+پاککردنەوە
+</button>
+
+<div class="price-box" id="result">
+<div class="message">
+بارکۆدی کاڵاکە داخڵ بکە بۆ پیشاندانی نرخ
+</div>
+</div>
+
+</div>
+
+<div class="card">
+
+<h3>🧾 لیستی کڕین</h3>
+
+<div id="cartList" class="product-list">
+<div class="message">
+هیچ کاڵایەک زیاد نەکراوە بۆ لیستی کڕین.
+</div>
+</div>
+
+<div class="total-row">
+<span>کۆی گشتی:</span>
+<span><span class="total-amount" id="cartTotal">0</span> دینار</span>
+</div>
+
+<button class="dark" onclick="clearCart()">
+🗑️ بەتاڵکردنەوەی لیست
+</button>
+
+</div>
+
+<div class="card">
+
+<button onclick="showAddProduct()">
+➕ زیادکردنی کاڵا
+</button>
+
+<div id="addProductBox" class="hidden">
+
+<br>
+
+<label>ناوی کاڵا</label>
+<input id="productName" type="text" placeholder="ناوی کاڵا">
+
+<label>بارکۆد</label>
+<input id="productBarcode" type="text" inputmode="numeric" placeholder="بارکۆدی کاڵا">
+
+<label>نرخ بە دینار</label>
+<input id="productPrice" type="number" inputmode="decimal" placeholder="بۆ نموونە 1500">
+
+<button id="saveBtn" onclick="addProduct()">
+💾 پاشەکەوتکردنی کاڵا
+</button>
+
+</div>
+</div>
+
+<div class="card">
+
+<h3>📦 کاڵاکان</h3>
+
+<div id="totalCount" class="message" style="text-align:right;margin-bottom:10px;">
+کۆی کاڵاکان: 0
+</div>
+
+<div id="productList" class="product-list">
+<div class="message">چاوەڕوان بە، بارکردن...</div>
+</div>
+
+</div>
+
+<div class="footer">
+سیستەمی کاشێری مارکێت
+</div>
+
+</div>
+
+<script>
+
+const STORAGE_KEY = "marketProducts";
+let products = [];
+let cart = [];
+let lastFoundProduct = null;
+
+async function loadProducts(){
+
+try{
+
+const res = await window.storage.get(STORAGE_KEY, false);
+
+products = res ? JSON.parse(res.value) : [];
+
+}catch(err){
+
+products = [];
+
+}
+
+displayProducts();
+
+}
+
+async function saveProducts(){
+
+try{
+
+const res = await window.storage.set(
+STORAGE_KEY,
+JSON.stringify(products),
+false
+);
+
+if(!res){
+
+alert("❌ کێشەیەک ڕوویدا لە پاشەکەوتکردن.");
+
+}
+
+}catch(err){
+
+alert("❌ کێشەیەک ڕوویدا لە پاشەکەوتکردن.");
+
+}
+
+displayProducts();
+
+}
+
+function searchProduct(){
+
+let barcode =
+document.getElementById("barcode").value.trim();
+
+let result =
+document.getElementById("result");
+
+lastFoundProduct = null;
+
+if(barcode===""){
+
+result.innerHTML=`
+<div class="message">
+تکایە بارکۆدی کاڵا داخڵ بکە.
+</div>`;
+
+return;
+
+}
+
+let product =
+products.find(
+item=>String(item.barcode)===barcode
+);
+
+if(!product){
+
+result.innerHTML=`
+<div class="message">
+❌ ئەم بارکۆدە نەدۆزرایەوە
+<br>
+لە بەشی زیادکردنی کاڵا دەتوانیت زیادیکەیت.
+</div>`;
+
+return;
+
+}
+
+lastFoundProduct = product;
+
+result.innerHTML=`
+
+<div class="product-name">
+${product.name}
+</div>
+
+<div class="price">
+${Number(product.price).toLocaleString()}
+</div>
+
+<div class="currency">
+دینار
+</div>
+
+<button class="add-cart-btn" onclick="addToCart()" style="margin-top:12px;">
+➕ زیادکردن بۆ لیستی کڕین
+</button>
+
+`;
+
+}
+
+function addToCart(){
+
+if(!lastFoundProduct) return;
+
+let qty = Number(document.getElementById("qty").value);
+
+if(!qty || qty<=0) qty = 1;
+
+let existing =
+cart.find(item=>String(item.barcode)===String(lastFoundProduct.barcode));
+
+if(existing){
+
+existing.qty += qty;
+
+}else{
+
+cart.push({
+name:lastFoundProduct.name,
+barcode:lastFoundProduct.barcode,
+price:lastFoundProduct.price,
+qty:qty
+});
+
+}
+
+displayCart();
+
+clearSearch();
+
+}
+
+function removeFromCart(index){
+
+cart.splice(index,1);
+
+displayCart();
+
+}
+
+function clearCart(){
+
+if(cart.length===0) return;
+
+if(!confirm("دڵنیایت لە بەتاڵکردنەوەی لیستی کڕین؟"))
+return;
+
+cart = [];
+
+displayCart();
+
+}
+
+function displayCart(){
+
+let list = document.getElementById("cartList");
+
+let total = 0;
+
+if(cart.length===0){
+
+list.innerHTML=`
+<div class="message">
+هیچ کاڵایەک زیاد نەکراوە بۆ لیستی کڕین.
+</div>`;
+
+document.getElementById("cartTotal").textContent = "0";
+
+return;
+
+}
+
+list.innerHTML="";
+
+cart.forEach((item,index)=>{
+
+let subtotal = item.price * item.qty;
+
+total += subtotal;
+
+let row = document.createElement("div");
+
+row.className = "cart-item";
+
+row.innerHTML=`
+
+<div class="cart-item-info">
+<div class="cart-item-name">${item.name}</div>
+<div class="cart-item-detail">
+${Number(item.price).toLocaleString()} × ${item.qty}
+</div>
+</div>
+
+<div class="cart-item-subtotal">
+${subtotal.toLocaleString()}
+</div>
+
+<button
+class="delete"
+style="width:auto;"
+onclick="removeFromCart(${index})">
+سڕینەوە
+</button>
+
+`;
+
+list.appendChild(row);
+
+});
+
+document.getElementById("cartTotal").textContent = total.toLocaleString();
+
+}
+
+function clearSearch(){
+
+document.getElementById("barcode").value="";
+document.getElementById("qty").value="1";
+
+lastFoundProduct = null;
+
+document.getElementById("result").innerHTML=`
+<div class="message">
+بارکۆدی کاڵاکە داخڵ بکە بۆ پیشاندانی نرخ
+</div>`;
+
+document.getElementById("barcode").focus();
+
+}
+
+function showAddProduct(){
+
+document
+.getElementById("addProductBox")
+.classList.toggle("hidden");
+
+}
+
+async function addProduct(){
+
+let name =
+document.getElementById("productName").value.trim();
+
+let barcode =
+document.getElementById("productBarcode").value.trim();
+
+let price =
+Number(document.getElementById("productPrice").value);
+
+if(name==="" || barcode==="" || price<=0){
+
+alert("تکایە هەموو خانەکان پڕ بکەرەوە.");
+
+return;
+
+}
+
+if(
+products.some(
+item=>String(item.barcode)===barcode
+)
+){
+
+alert("❌ ئەم بارکۆدە پێشتر هەیە.");
+
+return;
+
+}
+
+const saveBtn = document.getElementById("saveBtn");
+saveBtn.disabled = true;
+saveBtn.textContent = "چاوەڕوان بە...";
+
+products.push({
+name:name,
+barcode:barcode,
+price:price
+});
+
+await saveProducts();
+
+saveBtn.disabled = false;
+saveBtn.textContent = "💾 پاشەکەوتکردنی کاڵا";
+
+document.getElementById("productName").value="";
+document.getElementById("productBarcode").value="";
+document.getElementById("productPrice").value="";
+
+alert("✅ کاڵاکە زیادکرا.");
+
+}
+
+function displayProducts(){
+
+let list =
+document.getElementById("productList");
+
+document.getElementById("totalCount").textContent =
+"کۆی کاڵاکان: " + products.length;
+
+if(products.length===0){
+
+list.innerHTML=`
+<div class="message">
+هیچ کاڵایەک تۆمار نەکراوە.
+</div>`;
+
+return;
+
+}
+
+list.innerHTML="";
+
+products.forEach((product,index)=>{
+
+let item=document.createElement("div");
+
+item.className="product";
+
+item.innerHTML=`
+
+<div class="product-info">
+
+<div class="product-name-small">
+${product.name}
+</div>
+
+<div class="product-code">
+بارکۆد: ${product.barcode}
+<br>
+نرخ: ${Number(product.price).toLocaleString()} دینار
+</div>
+
+</div>
+
+<button
+class="delete"
+onclick="deleteProduct(${index})">
+سڕینەوە
+</button>
+
+`;
+
+list.appendChild(item);
+
+});
+
+}
+
+async function deleteProduct(index){
+
+if(!confirm("دڵنیایت لە سڕینەوەی ئەم کاڵایە؟"))
+return;
+
+products.splice(index,1);
+
+await saveProducts();
+
+}
+
+document
+.getElementById("barcode")
+.addEventListener("keydown",function(event){
+
+if(event.key==="Enter"){
+searchProduct();
+}
+
+});
+
+loadProducts();
+displayCart();
+
+</script>
+
+</body>
+</html>
