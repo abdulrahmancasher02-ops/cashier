@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -72,7 +72,7 @@ font-weight:bold;
 margin-bottom:8px;
 }
 
-input{
+input, select{
 width:100%;
 padding:15px;
 border:1px solid #ccc;
@@ -80,9 +80,11 @@ border-radius:12px;
 font-size:18px;
 outline:none;
 margin-bottom:10px;
+font-family:inherit;
+background:#fff;
 }
 
-input:focus{
+input:focus, select:focus{
 border-color:#168b45;
 }
 
@@ -112,78 +114,12 @@ cursor:not-allowed;
 background:#333;
 }
 
-.hidden{
-display:none !important;
-}
-
-.btn-row{
-display:flex;
-gap:10px;
-}
-
-.btn-row button{
-margin-top:0;
-}
-
 .scan-btn{
 background:#333;
 }
 
-.scanner-overlay{
-position:fixed;
-inset:0;
-background:rgba(0,0,0,.92);
-z-index:1000;
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-padding:15px;
-}
-
-.scanner-notice{
-background:#168b45;
-color:#fff;
-padding:12px 18px;
-border-radius:12px;
-text-align:center;
-font-size:14px;
-margin-bottom:14px;
-max-width:420px;
-box-shadow:0 4px 12px rgba(0,0,0,.3);
-}
-
-.scanner-box{
-position:relative;
-width:100%;
-max-width:420px;
-background:#000;
-border-radius:14px;
-overflow:hidden;
-}
-
-.scanner-box video, .scanner-box canvas{
-width:100% !important;
-height:auto !important;
-display:block;
-}
-
-.scanner-frame{
-position:absolute;
-top:35%;
-left:8%;
-right:8%;
-height:30%;
-border:3px solid #e5bd00;
-border-radius:8px;
-pointer-events:none;
-}
-
-.scanner-close{
-width:auto;
-padding:10px 25px;
-background:#d71920;
-margin-top:14px;
+.hidden{
+display:none !important;
 }
 
 .message{
@@ -203,6 +139,19 @@ align-items:center;
 padding:12px 5px;
 border-bottom:1px solid #ddd;
 gap:10px;
+}
+
+.product-thumb{
+width:52px;
+height:52px;
+border-radius:10px;
+object-fit:cover;
+background:#eee;
+flex-shrink:0;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:22px;
 }
 
 .product-info{
@@ -269,6 +218,61 @@ text-align:center;
 font-size:14px;
 margin-top:5px;
 }
+
+.image-preview{
+width:100%;
+max-width:200px;
+display:block;
+margin:0 auto 12px;
+border-radius:12px;
+border:1px solid #ddd;
+}
+
+.scanner-overlay{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.92);
+z-index:1000;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+padding:15px;
+}
+
+.scanner-notice{
+background:#168b45;
+color:#fff;
+padding:12px 18px;
+border-radius:12px;
+text-align:center;
+font-size:14px;
+margin-bottom:14px;
+max-width:420px;
+box-shadow:0 4px 12px rgba(0,0,0,.3);
+}
+
+.scanner-box{
+position:relative;
+width:100%;
+max-width:420px;
+background:#000;
+border-radius:14px;
+overflow:hidden;
+}
+
+.scanner-box video, .scanner-box canvas{
+width:100% !important;
+height:auto !important;
+display:block;
+}
+
+.scanner-close{
+width:auto;
+padding:10px 25px;
+background:#d71920;
+margin-top:14px;
+}
 </style>
 </head>
 
@@ -294,7 +298,7 @@ margin-top:5px;
 
 <div id="loginError" class="error-msg hidden"></div>
 
-<a class="back-link" href="index.html">↩ گەڕانەوە بۆ لاپەڕەی سەرەکی</a>
+<a class="back-link" href="index.html">↩ گەڕانەوە بۆ فرۆشگا</a>
 
 </div>
 
@@ -313,12 +317,20 @@ margin-top:5px;
 
 <h3 id="formTitle">➕ زیادکردنی کاڵای نوێ</h3>
 
+<img id="imagePreview" class="image-preview hidden">
+
+<label>وێنەی کاڵا</label>
+<input id="productImageInput" type="file" accept="image/*">
+
 <label>ناوی کاڵا</label>
 <input id="productName" type="text" placeholder="ناوی کاڵا">
 
 <label>بارکۆد</label>
 <input id="productBarcode" type="text" inputmode="numeric" placeholder="بارکۆدی کاڵا">
 <button type="button" class="scan-btn" onclick="openScanner()">📷 سکانکردنی بارکۆد بە کامیرا</button>
+
+<label style="margin-top:10px;">جۆری کاڵا</label>
+<select id="productCategory"></select>
 
 <label>نرخ بە دینار</label>
 <input id="productPrice" type="number" inputmode="decimal" placeholder="بۆ نموونە 1500">
@@ -350,9 +362,7 @@ margin-top:5px;
 <div class="scanner-notice">
 کامیرا لەسەر بارکۆدەکە ڕابگرە هەتا بەخۆکار بیخوێنێتەوە
 </div>
-<div class="scanner-box" id="scannerBox">
-<div class="scanner-frame"></div>
-</div>
+<div class="scanner-box" id="scannerBox"></div>
 <button class="scanner-close" onclick="closeScanner()">
 ✖ داخستنی سکانەر
 </button>
@@ -361,9 +371,27 @@ margin-top:5px;
 <script src="firebase-config.js"></script>
 <script>
 
+const CATEGORIES = [
+"خواردنی تازە",
+"دانەوێڵە و کۆنسێرڤ",
+"شیرینی و بەرهەمی شیر",
+"خواردنەوەکان",
+"پاکژی و خۆشبۆنکردنەوە",
+"کەلوپەلی ماڵ",
+"هیتر"
+];
+
 let products = [];
 let editingId = null;
+let currentImageData = null;
+let html5QrCode = null;
 let scannerActive = false;
+
+function populateCategorySelect(){
+let sel = document.getElementById("productCategory");
+sel.innerHTML = CATEGORIES.map(c=>`<option value="${c}">${c}</option>`).join("");
+}
+populateCategorySelect();
 
 // ---------- Auth ----------
 
@@ -414,6 +442,55 @@ function logout(){
 auth.signOut();
 }
 
+// ---------- Image handling (compressed, stored inline in Firestore - no paid storage needed) ----------
+
+document.getElementById("productImageInput").addEventListener("change", function(e){
+handleImageFile(e.target.files[0]);
+});
+
+function handleImageFile(file){
+
+if(!file) return;
+
+const reader = new FileReader();
+
+reader.onload = function(e){
+
+const img = new Image();
+
+img.onload = function(){
+
+const maxDim = 480;
+let w = img.width;
+let h = img.height;
+
+if(w > h){
+if(w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+}else{
+if(h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+}
+
+const canvas = document.createElement("canvas");
+canvas.width = w;
+canvas.height = h;
+canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+
+currentImageData = canvas.toDataURL("image/jpeg", 0.6);
+
+const preview = document.getElementById("imagePreview");
+preview.src = currentImageData;
+preview.classList.remove("hidden");
+
+};
+
+img.src = e.target.result;
+
+};
+
+reader.readAsDataURL(file);
+
+}
+
 // ---------- Products (live sync) ----------
 
 db.collection("products").onSnapshot(function(snapshot){
@@ -450,7 +527,13 @@ let item=document.createElement("div");
 
 item.className="product";
 
+let thumbHtml = product.image
+? `<img class="product-thumb" src="${product.image}">`
+: `<div class="product-thumb">📦</div>`;
+
 item.innerHTML=`
+
+${thumbHtml}
 
 <div class="product-info">
 
@@ -460,6 +543,8 @@ ${product.name}
 
 <div class="product-code">
 بارکۆد: ${product.barcode}
+<br>
+جۆر: ${product.category || "-"}
 <br>
 نرخ: ${Number(product.price).toLocaleString()} دینار
 </div>
@@ -489,6 +574,18 @@ editingId = id;
 document.getElementById("productName").value = product.name;
 document.getElementById("productBarcode").value = product.barcode;
 document.getElementById("productPrice").value = product.price;
+document.getElementById("productCategory").value = product.category || CATEGORIES[0];
+
+currentImageData = product.image || null;
+document.getElementById("productImageInput").value = "";
+
+const preview = document.getElementById("imagePreview");
+if(currentImageData){
+preview.src = currentImageData;
+preview.classList.remove("hidden");
+}else{
+preview.classList.add("hidden");
+}
 
 document.getElementById("formTitle").textContent = "✏️ دەستکاریکردنی کاڵا";
 document.getElementById("saveBtn").textContent = "💾 پاشەکەوتکردنی گۆڕانکاری";
@@ -501,10 +598,17 @@ window.scrollTo({top:0, behavior:"smooth"});
 function cancelEdit(){
 
 editingId = null;
+currentImageData = null;
 
 document.getElementById("productName").value = "";
 document.getElementById("productBarcode").value = "";
 document.getElementById("productPrice").value = "";
+document.getElementById("productCategory").value = CATEGORIES[0];
+document.getElementById("productImageInput").value = "";
+
+const preview = document.getElementById("imagePreview");
+preview.classList.add("hidden");
+preview.src = "";
 
 document.getElementById("formTitle").textContent = "➕ زیادکردنی کاڵای نوێ";
 document.getElementById("saveBtn").textContent = "💾 پاشەکەوتکردن";
@@ -517,6 +621,7 @@ async function saveProduct(){
 let name = document.getElementById("productName").value.trim();
 let barcode = document.getElementById("productBarcode").value.trim();
 let price = Number(document.getElementById("productPrice").value);
+let category = document.getElementById("productCategory").value;
 
 if(name==="" || barcode==="" || price<=0){
 alert("تکایە هەموو خانەکان پڕ بکەرەوە.");
@@ -533,23 +638,23 @@ const saveBtn = document.getElementById("saveBtn");
 saveBtn.disabled = true;
 saveBtn.textContent = "چاوەڕوان بە...";
 
+let data = {
+name:name,
+barcode:barcode,
+price:price,
+category:category,
+image:currentImageData || null
+};
+
 try{
 
 if(editingId){
 
-await db.collection("products").doc(editingId).update({
-name:name,
-barcode:barcode,
-price:price
-});
+await db.collection("products").doc(editingId).update(data);
 
 }else{
 
-await db.collection("products").add({
-name:name,
-barcode:barcode,
-price:price
-});
+await db.collection("products").add(data);
 
 }
 
@@ -557,7 +662,7 @@ cancelEdit();
 
 }catch(err){
 
-alert("❌ کێشەیەک ڕوویدا لە پاشەکەوتکردن.");
+alert("❌ کێشەیەک ڕوویدا لە پاشەکەوتکردن. لەوانەیە وێنەکە زۆر گەورە بێت.");
 console.error(err);
 
 }
@@ -581,58 +686,56 @@ console.error(err);
 
 }
 
-// ---------- Camera barcode scanner (for filling the barcode field) ----------
+// ---------- Camera barcode scanner (for filling the barcode field, html5-qrcode) ----------
 
 function openScanner(){
 
 document.getElementById("scannerOverlay").classList.remove("hidden");
 
-Quagga.init({
-inputStream:{
-type:"LiveStream",
-target: document.getElementById("scannerBox"),
-constraints:{
-facingMode:"environment"
+if(!html5QrCode){
+html5QrCode = new Html5Qrcode("scannerBox");
 }
-},
-decoder:{
-readers:["ean_reader","ean_8_reader","code_128_reader","upc_reader"]
-}
-}, function(err){
 
-if(err){
+html5QrCode.start(
+{ facingMode:"environment" },
+{
+fps:10,
+qrbox:{ width:250, height:130 },
+formatsToSupport:[
+Html5QrcodeSupportedFormats.EAN_13,
+Html5QrcodeSupportedFormats.EAN_8,
+Html5QrcodeSupportedFormats.UPC_A,
+Html5QrcodeSupportedFormats.UPC_E,
+Html5QrcodeSupportedFormats.CODE_128
+]
+},
+function(decodedText){
+if(!scannerActive) return;
+document.getElementById("productBarcode").value = decodedText;
+closeScanner();
+},
+function(errorMessage){
+// ignore per-frame decode misses
+}
+).then(function(){
+scannerActive = true;
+}).catch(function(err){
 alert("❌ کامیرا نەدۆزرایەوە یان ڕێگە نەدرا");
 closeScanner();
 console.error(err);
-return;
-}
-
-Quagga.start();
-scannerActive = true;
-
 });
-
-Quagga.onDetected(onBarcodeDetected);
-
-}
-
-function onBarcodeDetected(data){
-
-if(!scannerActive) return;
-
-document.getElementById("productBarcode").value = data.codeResult.code;
-
-closeScanner();
 
 }
 
 function closeScanner(){
 
-if(scannerActive){
-Quagga.offDetected(onBarcodeDetected);
-Quagga.stop();
-scannerActive = false;
+if(scannerActive && html5QrCode){
+html5QrCode.stop().then(function(){
+html5QrCode.clear();
+}).catch(function(){});
 }
+
+scannerActive = false;
 
 document.getElementById("scannerOverlay").classList.add("hidden");
 
