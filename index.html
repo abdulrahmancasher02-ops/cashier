@@ -8,7 +8,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
 *{box-sizing:border-box}
@@ -340,6 +340,90 @@ box-shadow:0 4px 14px rgba(0,0,0,.3);
 text-align:center;
 max-width:90%;
 }
+
+.category-chips{
+display:flex;
+gap:8px;
+overflow-x:auto;
+padding-bottom:8px;
+margin-bottom:5px;
+}
+
+.chip{
+flex-shrink:0;
+padding:8px 16px;
+border-radius:20px;
+background:#eee;
+font-size:13px;
+cursor:pointer;
+white-space:nowrap;
+border:1px solid transparent;
+}
+
+.chip.active{
+background:#168b45;
+color:#fff;
+}
+
+.catalog-grid{
+display:grid;
+grid-template-columns:repeat(2,1fr);
+gap:12px;
+margin-top:12px;
+}
+
+.catalog-item{
+background:#fafafa;
+border-radius:14px;
+overflow:hidden;
+box-shadow:0 2px 8px rgba(0,0,0,.08);
+display:flex;
+flex-direction:column;
+}
+
+.catalog-img{
+width:100%;
+aspect-ratio:1/1;
+object-fit:cover;
+background:#eee;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:38px;
+}
+
+.catalog-info{
+padding:8px;
+flex:1;
+}
+
+.catalog-name{
+font-size:13px;
+font-weight:bold;
+line-height:1.3;
+min-height:34px;
+}
+
+.catalog-category{
+font-size:11px;
+color:#888;
+margin-top:2px;
+}
+
+.catalog-price{
+color:#168b45;
+font-weight:bold;
+font-size:15px;
+margin-top:4px;
+}
+
+.catalog-add{
+width:100%;
+border-radius:0;
+margin-top:0;
+padding:9px;
+font-size:13px;
+}
 </style>
 </head>
 
@@ -411,6 +495,20 @@ placeholder="بارکۆد لێرە بنووسە..."
 
 </div>
 
+<div class="card">
+
+<h3>🛍️ کاڵاکانی فرۆشگا</h3>
+
+<input id="searchName" type="text" placeholder="گەڕان بە ناوی کاڵا..." oninput="onSearchInput()">
+
+<div id="categoryChips" class="category-chips"></div>
+
+<div id="catalogGrid" class="catalog-grid">
+<div class="message" style="grid-column:1/-1;">چاوەڕوان بە، بارکردن...</div>
+</div>
+
+</div>
+
 </div>
 
 <div class="footer">
@@ -421,9 +519,7 @@ placeholder="بارکۆد لێرە بنووسە..."
 <div class="scanner-notice">
 کامیرا لەسەر بارکۆدەکە ڕابگرە هەتا بەخۆکار بیخوێنێتەوە
 </div>
-<div class="scanner-box" id="scannerBox">
-<div class="scanner-frame"></div>
-</div>
+<div class="scanner-box" id="scannerBox"></div>
 <button class="scanner-close" onclick="closeScanner()">
 ✖ داخستنی سکانەر
 </button>
@@ -434,10 +530,23 @@ placeholder="بارکۆد لێرە بنووسە..."
 <script src="firebase-config.js"></script>
 <script>
 
+const CATEGORIES = [
+"خواردنی تازە",
+"دانەوێڵە و کۆنسێرڤ",
+"شیرینی و بەرهەمی شیر",
+"خواردنەوەکان",
+"پاکژی و خۆشبۆنکردنەوە",
+"کەلوپەلی ماڵ",
+"هیتر"
+];
+
 let products = [];
 let cart = [];
 let lastFoundProduct = null;
+let html5QrCode = null;
 let scannerActive = false;
+let currentCategory = "all";
+let currentSearch = "";
 
 function showToast(msg){
 let t = document.getElementById("toast");
@@ -449,6 +558,7 @@ setTimeout(()=>t.classList.add("hidden"), 2200);
 // Live sync from Firestore - everyone always sees the latest prices
 db.collection("products").onSnapshot(function(snapshot){
 products = snapshot.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+renderCatalog();
 }, function(err){
 showToast("❌ نەتوانرا پەیوەندی بە داتابەیسەوە بکرێت");
 console.error(err);
@@ -544,6 +654,36 @@ qty:qty
 displayCart();
 
 clearSearch();
+
+}
+
+function quickAddToCart(id){
+
+let product = products.find(p=>p.id===id);
+
+if(!product) return;
+
+let existing =
+cart.find(item=>String(item.barcode)===String(product.barcode));
+
+if(existing){
+
+existing.qty += 1;
+
+}else{
+
+cart.push({
+name:product.name,
+barcode:product.barcode,
+price:product.price,
+qty:1
+});
+
+}
+
+displayCart();
+
+showToast("✅ زیادکرا بۆ لیستی کڕین");
 
 }
 
@@ -655,46 +795,117 @@ searchProduct();
 
 });
 
-// ---------- Camera barcode scanner (Quagga) ----------
+// ---------- Catalog: search + category filter + grid ----------
+
+function renderCategoryChips(){
+
+let box = document.getElementById("categoryChips");
+
+let allChip = `<div class="chip ${currentCategory==='all'?'active':''}" onclick="setCategory('all')">هەموو</div>`;
+
+let chips = CATEGORIES.map(cat=>
+`<div class="chip ${currentCategory===cat?'active':''}" onclick="setCategory('${cat}')">${cat}</div>`
+).join("");
+
+box.innerHTML = allChip + chips;
+
+}
+
+function setCategory(cat){
+currentCategory = cat;
+renderCategoryChips();
+renderCatalog();
+}
+
+function onSearchInput(){
+currentSearch = document.getElementById("searchName").value.trim().toLowerCase();
+renderCatalog();
+}
+
+function renderCatalog(){
+
+let grid = document.getElementById("catalogGrid");
+
+let filtered = products.filter(p=>{
+let matchCat = currentCategory==="all" || p.category===currentCategory;
+let matchSearch = !currentSearch || (p.name||"").toLowerCase().includes(currentSearch);
+return matchCat && matchSearch;
+});
+
+if(filtered.length===0){
+grid.innerHTML = `<div class="message" style="grid-column:1/-1;">هیچ کاڵایەک نەدۆزرایەوە.</div>`;
+return;
+}
+
+grid.innerHTML = "";
+
+filtered.forEach(p=>{
+
+let el = document.createElement("div");
+el.className = "catalog-item";
+
+let imgHtml = p.image
+? `<img class="catalog-img" src="${p.image}" alt="${p.name}">`
+: `<div class="catalog-img">📦</div>`;
+
+el.innerHTML = `
+${imgHtml}
+<div class="catalog-info">
+<div class="catalog-name">${p.name}</div>
+<div class="catalog-category">${p.category || ""}</div>
+<div class="catalog-price">${Number(p.price).toLocaleString()} دینار</div>
+</div>
+<button class="catalog-add" onclick="quickAddToCart('${p.id}')">➕ زیادکردن</button>
+`;
+
+grid.appendChild(el);
+
+});
+
+}
+
+// ---------- Camera barcode scanner (html5-qrcode) ----------
 
 function openScanner(){
 
 document.getElementById("scannerOverlay").classList.remove("hidden");
 
-Quagga.init({
-inputStream:{
-type:"LiveStream",
-target: document.getElementById("scannerBox"),
-constraints:{
-facingMode:"environment"
+if(!html5QrCode){
+html5QrCode = new Html5Qrcode("scannerBox");
 }
-},
-decoder:{
-readers:["ean_reader","ean_8_reader","code_128_reader","upc_reader"]
-}
-}, function(err){
 
-if(err){
+html5QrCode.start(
+{ facingMode:"environment" },
+{
+fps:10,
+qrbox:{ width:250, height:130 },
+formatsToSupport:[
+Html5QrcodeSupportedFormats.EAN_13,
+Html5QrcodeSupportedFormats.EAN_8,
+Html5QrcodeSupportedFormats.UPC_A,
+Html5QrcodeSupportedFormats.UPC_E,
+Html5QrcodeSupportedFormats.CODE_128
+]
+},
+function(decodedText){
+onBarcodeDetected(decodedText);
+},
+function(errorMessage){
+// ignore per-frame decode misses
+}
+).then(function(){
+scannerActive = true;
+}).catch(function(err){
 showToast("❌ کامیرا نەدۆزرایەوە یان ڕێگە نەدرا");
 closeScanner();
 console.error(err);
-return;
-}
-
-Quagga.start();
-scannerActive = true;
-
 });
 
-Quagga.onDetected(onBarcodeDetected);
-
 }
 
-function onBarcodeDetected(data){
+function onBarcodeDetected(code){
 
 if(!scannerActive) return;
-
-let code = data.codeResult.code;
 
 document.getElementById("barcode").value = code;
 
@@ -706,16 +917,19 @@ searchProduct();
 
 function closeScanner(){
 
-if(scannerActive){
-Quagga.offDetected(onBarcodeDetected);
-Quagga.stop();
-scannerActive = false;
+if(scannerActive && html5QrCode){
+html5QrCode.stop().then(function(){
+html5QrCode.clear();
+}).catch(function(){});
 }
+
+scannerActive = false;
 
 document.getElementById("scannerOverlay").classList.add("hidden");
 
 }
 
+renderCategoryChips();
 displayCart();
 
 </script>
