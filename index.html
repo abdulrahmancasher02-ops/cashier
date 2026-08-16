@@ -530,17 +530,8 @@ placeholder="بارکۆد لێرە بنووسە..."
 <script src="firebase-config.js"></script>
 <script>
 
-const CATEGORIES = [
-"خواردنی تازە",
-"دانەوێڵە و کۆنسێرڤ",
-"شیرینی و بەرهەمی شیر",
-"خواردنەوەکان",
-"پاکژی و خۆشبۆنکردنەوە",
-"کەلوپەلی ماڵ",
-"هیتر"
-];
-
 let products = [];
+let categories = [];
 let cart = [];
 let lastFoundProduct = null;
 let html5QrCode = null;
@@ -562,6 +553,11 @@ renderCatalog();
 }, function(err){
 showToast("❌ نەتوانرا پەیوەندی بە داتابەیسەوە بکرێت");
 console.error(err);
+});
+
+db.collection("categories").onSnapshot(function(snapshot){
+categories = snapshot.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+renderCategoryChips();
 });
 
 function searchProduct(){
@@ -803,8 +799,8 @@ let box = document.getElementById("categoryChips");
 
 let allChip = `<div class="chip ${currentCategory==='all'?'active':''}" onclick="setCategory('all')">هەموو</div>`;
 
-let chips = CATEGORIES.map(cat=>
-`<div class="chip ${currentCategory===cat?'active':''}" onclick="setCategory('${cat}')">${cat}</div>`
+let chips = categories.map(cat=>
+`<div class="chip ${currentCategory===cat.name?'active':''}" onclick="setCategory('${cat.name}')">${cat.name}</div>`
 ).join("");
 
 box.innerHTML = allChip + chips;
