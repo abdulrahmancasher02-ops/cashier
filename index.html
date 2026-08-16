@@ -250,14 +250,19 @@ padding:15px;
 }
 
 .admin-link{
+position:fixed;
+top:14px;
+left:14px;
+z-index:10;
 display:inline-block;
-color:#555;
-font-size:13px;
+color:#333;
+font-size:12px;
 text-decoration:none;
-padding:8px 16px;
+padding:8px 14px;
 border:1px solid #bbb;
 border-radius:20px;
-background:rgba(255,255,255,.6);
+background:rgba(255,255,255,.85);
+box-shadow:0 2px 8px rgba(0,0,0,.15);
 }
 
 .admin-link:hover{
@@ -429,6 +434,8 @@ font-size:13px;
 
 <body>
 
+<a class="admin-link" href="admin.html">🔒 کارمەندان و بەڕێوەبەران</a>
+
 <div class="header">
 <img src="logo.png" alt="هەفتەبازاڕی سلێمانی">
 <h1>هەفتەبازاڕی سلێمانی</h1>
@@ -509,10 +516,6 @@ placeholder="بارکۆد لێرە بنووسە..."
 
 </div>
 
-</div>
-
-<div class="footer">
-<a class="admin-link" href="admin.html">🔒 بۆ کارمەندان و بەڕێوەبەران</a>
 </div>
 
 <div id="scannerOverlay" class="scanner-overlay hidden">
