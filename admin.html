@@ -228,6 +228,24 @@ border-radius:12px;
 border:1px solid #ddd;
 }
 
+.category-row{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:10px 5px;
+border-bottom:1px solid #ddd;
+gap:10px;
+}
+
+.category-row .cat-name{
+flex:1;
+font-weight:bold;
+}
+
+.category-row .btn-group{
+flex-direction:row;
+}
+
 .scanner-overlay{
 position:fixed;
 inset:0;
@@ -315,6 +333,19 @@ margin-top:14px;
 
 <div class="card">
 
+<h3>🏷️ بەڕێوەبردنی جۆرەکان</h3>
+
+<input id="newCategoryName" type="text" placeholder="ناوی جۆری نوێ...">
+<button onclick="addCategory()">➕ زیادکردنی جۆر</button>
+
+<div id="categoryManageList" class="product-list">
+<div class="message">چاوەڕوان بە...</div>
+</div>
+
+</div>
+
+<div class="card">
+
 <h3 id="formTitle">➕ زیادکردنی کاڵای نوێ</h3>
 
 <img id="imagePreview" class="image-preview hidden">
@@ -371,7 +402,7 @@ margin-top:14px;
 <script src="firebase-config.js"></script>
 <script>
 
-const CATEGORIES = [
+const SEED_CATEGORIES = [
 "خواردنی تازە",
 "دانەوێڵە و کۆنسێرڤ",
 "شیرینی و بەرهەمی شیر",
@@ -382,6 +413,8 @@ const CATEGORIES = [
 ];
 
 let products = [];
+let categories = [];
+let hasSeeded = false;
 let editingId = null;
 let currentImageData = null;
 let html5QrCode = null;
@@ -389,9 +422,145 @@ let scannerActive = false;
 
 function populateCategorySelect(){
 let sel = document.getElementById("productCategory");
-sel.innerHTML = CATEGORIES.map(c=>`<option value="${c}">${c}</option>`).join("");
+let prev = sel.value;
+sel.innerHTML = categories.map(c=>`<option value="${c.name}">${c.name}</option>`).join("");
+if(categories.some(c=>c.name===prev)){
+sel.value = prev;
 }
+}
+
+// ---------- Categories (live sync, editable by staff) ----------
+
+db.collection("categories").onSnapshot(async function(snapshot){
+
+if(snapshot.empty && !hasSeeded){
+
+hasSeeded = true;
+
+try{
+const batch = db.batch();
+SEED_CATEGORIES.forEach(name=>{
+const ref = db.collection("categories").doc();
+batch.set(ref, {name:name});
+});
+await batch.commit();
+}catch(err){
+console.error(err);
+}
+
+return;
+
+}
+
+categories = snapshot.docs.map(doc=>({ id: doc.id, ...doc.data() }));
+
 populateCategorySelect();
+displayCategories();
+
+});
+
+function displayCategories(){
+
+let list = document.getElementById("categoryManageList");
+
+if(categories.length===0){
+list.innerHTML = `<div class="message">هێشتا هیچ جۆرێک نییە.</div>`;
+return;
+}
+
+list.innerHTML = "";
+
+categories.forEach(cat=>{
+
+let row = document.createElement("div");
+row.className = "category-row";
+
+row.innerHTML = `
+<div class="cat-name">${cat.name}</div>
+<div class="btn-group">
+<button class="edit-btn" onclick="renameCategory('${cat.id}','${cat.name.replace(/'/g,"\\'")}')">✏️</button>
+<button class="delete" onclick="deleteCategory('${cat.id}','${cat.name.replace(/'/g,"\\'")}')">🗑️</button>
+</div>
+`;
+
+list.appendChild(row);
+
+});
+
+}
+
+async function addCategory(){
+
+let input = document.getElementById("newCategoryName");
+let name = input.value.trim();
+
+if(name===""){
+return;
+}
+
+if(categories.some(c=>c.name===name)){
+alert("❌ ئەم جۆرە پێشتر هەیە.");
+return;
+}
+
+try{
+await db.collection("categories").add({name:name});
+input.value = "";
+}catch(err){
+alert("❌ کێشەیەک ڕوویدا لە زیادکردنی جۆر.");
+console.error(err);
+}
+
+}
+
+async function renameCategory(id, oldName){
+
+let newName = prompt("ناوی نوێی جۆر بنووسە:", oldName);
+
+if(newName===null) return;
+
+newName = newName.trim();
+
+if(newName==="" || newName===oldName) return;
+
+if(categories.some(c=>c.name===newName && c.id!==id)){
+alert("❌ ئەم ناوە پێشتر هەیە.");
+return;
+}
+
+try{
+
+const batch = db.batch();
+
+batch.update(db.collection("categories").doc(id), {name:newName});
+
+const affected = await db.collection("products").where("category","==",oldName).get();
+affected.forEach(doc=>{
+batch.update(doc.ref, {category:newName});
+});
+
+await batch.commit();
+
+}catch(err){
+alert("❌ کێشەیەک ڕوویدا لە نوێکردنەوەی جۆر.");
+console.error(err);
+}
+
+}
+
+async function deleteCategory(id, name){
+
+if(!confirm(`دڵنیایت لە سڕینەوەی "${name}"؟ کاڵاکانی ئەم جۆرە بەبێ جۆر دەمێننەوە.`))
+return;
+
+try{
+await db.collection("categories").doc(id).delete();
+}catch(err){
+alert("❌ کێشەیەک ڕوویدا لە سڕینەوەی جۆر.");
+console.error(err);
+}
+
+}
 
 // ---------- Auth ----------
 
@@ -574,7 +743,7 @@ editingId = id;
 document.getElementById("productName").value = product.name;
 document.getElementById("productBarcode").value = product.barcode;
 document.getElementById("productPrice").value = product.price;
-document.getElementById("productCategory").value = product.category || CATEGORIES[0];
+document.getElementById("productCategory").value = product.category || (categories[0] ? categories[0].name : "");
 
 currentImageData = product.image || null;
 document.getElementById("productImageInput").value = "";
@@ -603,7 +772,7 @@ currentImageData = null;
 document.getElementById("productName").value = "";
 document.getElementById("productBarcode").value = "";
 document.getElementById("productPrice").value = "";
-document.getElementById("productCategory").value = CATEGORIES[0];
+document.getElementById("productCategory").value = categories[0] ? categories[0].name : "";
 document.getElementById("productImageInput").value = "";
 
 const preview = document.getElementById("imagePreview");
